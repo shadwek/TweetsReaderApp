@@ -1,0 +1,316 @@
+<script src="/TweetsReader/js/prototype.forms.js" type="text/javascript"></script>
+<script src="/TweetsReader/js/jotform.forms.js" type="text/javascript"></script>
+<script src="/TweetsReader/js/postMessage.min.js" type="text/javascript"></script>
+<script src="/TweetsReader/js/WidgetsServer.js" type="text/javascript"></script>
+<script src="/TweetsReader/js/jquery.min.js" type="text/javascript"></script>
+<script src="/TweetsReader/js/jquery.dynatable.js" type="text/javascript"></script>
+<script src="/TweetsReader/js/standalone-framework.js"></script>
+<script src="/TweetsReader/js/highcharts.js"></script>
+<link href="/TweetsReader/css/formCss.css" rel="stylesheet" type="text/css" />
+<link href="/TweetsReader/css/nova.css" type="text/css" rel="stylesheet"  />
+<link href="/TweetsReader/css/printForm.css" type="text/css" media="print" rel="stylesheet"/>
+<link href="/TweetsReader/css/jquery.dynatable.css" type="text/css" media="all" rel="stylesheet"/>
+<link href="/TweetsReader/css/main.css" rel="stylesheet" type="text/css" />
+
+
+<script>
+	var topFolTable = [
+	'    <div id="topFol_div" class="datagrid" align="left">',
+	'        <table id="topFol_table">',
+	'          <thead>',
+	'            <th style="display:none">_id</th>',
+	'            <th id="header">user_name</th>',
+	'            <th id="header2">num_of_followers</th>',
+	'          </thead>',
+	'          <tbody>',
+	'          </tbody>',
+	'        </table>',
+	'	</div>'
+	].join('');
+	
+	var topRetTable = [
+	'    <div id="topRet_div" class="datagrid" align="left">',
+	'        <table id="topRet_table">',
+	'          <thead>',
+	'            <th style="display:none">_id</th>',
+	'            <th id="header">user_name</th>',
+	'            <th id="header2">retweet_count</th>',
+	'          </thead>',
+	'          <tbody>',
+	'          </tbody>',
+	'        </table>',
+	'	</div>'
+	].join('');
+	
+	var topMenTable = [
+	'    <div id="topMen_div" class="datagrid" align="left">',
+	'        <table id="topMen_table">',
+	'          <thead>',
+	'            <th style="display:none">_id</th>',
+	'            <th id="header">user_name</th>',
+	'            <th id="header2">num_of_mentions</th>',
+	'          </thead>',
+	'          <tbody>',
+	'          </tbody>',
+	'        </table>',
+	'	</div>'
+	].join('');
+	
+	var readTweetsTable = [
+	'    <div id="tweets_div" class="myRow" align="left">',
+	'        <table id="readTweets_table">',
+	'          <thead>',
+	'            <th style="display:none">_id</th>',
+	'            <th id="header">0</th>',
+	'          </thead>',
+	'          <tbody class="myRow">',
+	'          </tbody>',
+	'        </table>',
+	'    </div>'
+	].join('');
+
+	var isNewRead = false;
+	function formURL(table)
+    {
+   		var url = document.URL + "get/" + table;
+		if(url.indexOf('home.html') > -1){
+			url = url.replace('home.html', 'TweetsReader/');
+			url = url.replace('localhost', 'localhost:8080');
+		}
+		if(table == "readTweets")
+		{	
+			isNewRead = true;
+			var limit = document.getElementById("tweets_limit").value;
+			url = url + "?limit=" + limit;
+		}
+		return url;
+    }
+	
+	  var json = [];
+	  function toTable(table) 
+	  {
+		   hideTables();
+		   var tableId = table +'_table';
+		   $("#tablePlace").append(window[table + "Table"]);
+		   getData(formURL(table));
+			$('#' + tableId).dynatable({
+				features: {
+					sort: false,
+				}, dataset: {
+	    			records: json
+				  }
+			 });
+			 var s = 'Search ' + $("#header").text();
+			 s = s.replace('_', ' ');
+			 var ele = document.getElementById("dynatable-search-" + tableId);
+			 var cont = ele.innerHTML.replace('Search', s);
+			 ele.innerHTML = cont;	
+			 var header1 = document.getElementById("header");
+			 var header2 = document.getElementById("header2");
+			 header1.innerHTML = 'User Name';
+			 if(table == 'readTweets'){
+				 header1.innerHTML = 'Tweet Data';
+			 }else if(table == 'topRet'){
+				 header2.innerHTML = 'Number of Retweets';
+			 }else if(table == 'topFol'){
+				 header2.innerHTML = 'Number of Followers';
+			 }else {
+				 header2.innerHTML = 'Number of Mentions';
+			 }
+		}
+
+		// getting data from php file becasue javascript can not
+		// make http calls on local host
+		var tweetsCount = 0;
+		function getData(url){
+			$.ajax({
+				url: url,
+				async: false,
+				dataType: 'json',
+				success: function(data){
+					if(isNewRead){
+						tweetsCount = data.length;
+						for(i = 0; i < tweetsCount; i++){
+							json[i] = [data[i]['tweet_text']];
+						}
+						isNewRead = false;// rest isNewRead
+						tweetsCount = 0;
+					}else{
+					json = data;
+					}
+				}
+			});
+		}
+
+		function getTweets(table){
+
+			if(checkInput()){
+				return;
+			}
+			var input = Number($("#tweets_limit").val());
+			var seconds = (input / 100 + 5);
+			document.getElementById("rt_button").innerHTML='Please wait for <br>' + seconds + ' seconds';
+			toTable('readTweets');
+			document.getElementById("rt_button").innerHTML='Submit';
+		}
+		
+		function colorTweets(){
+			//users * starting with @ ending with ' ' BLUE
+			//after 'has ' x 'followers, (TotalRetweets:' x ')' 
+			// 'Tweeted', 'Retweeted'
+			// 'in ' language ' :' RED
+			// 'at ' x ':' x *ending of string GREAN	
+		}
+		
+		var chart;
+		function makeChart(type, title, subtitle, xName){
+
+			chart = new Highcharts.Chart({		
+				chart:{
+					renderTo: 'container',
+					type: type  
+				},
+				title: {
+					text: title
+				},
+		
+				subtitle: {
+					text:  subtitle + ' for total ' + tweetsCount + ' tweets'
+				},
+				xAxis: {
+					categories: x
+				},
+		
+				series: [{
+					name: xName,
+					data: y // count
+				}]
+			});	
+		}
+		
+		var y = [];
+		var x = [];
+		function dataToColums(to){
+			
+			var key = 'language';
+			if(to == 'topTime'){
+				key = 'minute';
+			}
+			getData(formURL(to));
+			for(i = 0; i < json.length; i++){
+				tweetsCount += json[i]["count"];
+				y[i] = json[i]["count"];
+				x[i] = json[i][key];
+			}
+			hideTables();
+			if(to == 'languages'){
+				makeChart('column', 'Languages Tweet Count', 'Languages tweet count', 'Tweets languages');
+			}else{
+				makeChart('bar', 'Tweets Written Minutes', 'Tweets written in minutes of the last hour', 'Minutes');
+			}
+			console.log();
+			tweetsCount = 0; // reset tweets count
+			x = [];
+			y = [];
+		}
+
+		function hideTables(){
+			$("#tablePlace").empty();
+			$("#container").empty();
+		}
+		
+		function checkInput(){
+			var input = $("#tweets_limit").val();
+			if(!input.match(/^\d+$/)){
+				alert("Please enter a valid number!");
+				return true;
+			}
+		}
+		
+		$(document).ready(function(){
+			hideTables();
+		});
+	</script>
+<form class="jotform-form" accept-charset="utf-8" onsubmit="return false;" onkeypress="return event.keyCode != 13;">
+  <input type="hidden" name="formID" value="50902160889459" />
+  <div class="form-all">
+    <ul class="form-section page-section">
+      <li id="cid_5" class="form-input-wide" data-type="control_head">
+        <div class="form-header-group">
+          <div class="header-text httal htvam">
+            <h3 id="lable_header" class="form-header">
+              Tweets Reader v1.0
+            </h3>
+          </div>
+          <div align="left">Reads random public tweets </div>
+        </div>
+      </li>
+      <li class="form-line form-line-column form-col-1" data-type="control_textbox" id="id_11">
+        <label class="form-label form-label-top" id="lable_tweets" for="input_11"> Tweets limit: </label>
+        <div id="cid_11" class="form-input-wide jf-required">
+          <input type="text" style="font-size:14px" class=" form-textbox" id="tweets_limit" data-type="input-textbox" name="q11_tweetsLimit" size="20" value="" />
+          <br>
+          <label style="font-size:13px; color:#999">to make sense of data, let limit > 100</label>
+        </div>
+      </li>
+      
+      <li class="form-line form-line-column form-col-2" data-type="control_button" id="id_7">
+        <div id="cid_7" class="form-input-wide">
+          <div style="text-align:right" class="form-buttons-wrapper">
+            <button id="rt_button" style="font-size:16px; font-weight:600" type="button" onclick="getTweets('readTweets')" class="form-submit-button">
+              Submit
+            </button>
+          </div>
+        </div>
+      </li>
+      <li class="form-line form-line-column form-col-3 jf-required" data-type="control_radio" id="id_9">
+        <label class="form-label form-label-top" id="lable_cs" for="input_9">
+          Choose a statistic:
+          <span class="form-required">
+            *
+          </span>
+        </label>
+        <div id="cid_9" class="form-input-wide jf-required">
+          <div class="form-single-column">
+            <span class="form-radio-item" style="clear:left;">
+              <input type="radio" class="form-radio validate[required]" id="topRet" name="topRet" value="Get top retweets" />
+              <button for="input_9_0" class="myButton" onclick="toTable('topRet')"> Get top 5 retweets </button>
+            </span>
+            <span class="clearfix">
+            </span>
+            <span class="form-radio-item" style="clear:left;">
+              <input type="radio" class="form-radio validate[required]" id="topFol" name="topFol" value="Get top followed users." />
+              <button for="input_9_1" class="myButton" onClick="toTable('topFol')"> Get top 5 followed users. </button>
+            </span>
+            <span class="clearfix">
+            </span>
+            <span class="form-radio-item" style="clear:left;">
+              <input type="radio" class="form-radio validate[required]" id="topMen" name="topMen" value="Get top mentions." />
+            <button for="input_9_2" class="myButton" onClick="toTable('topMen')"> Get top 5 mentions. </button>
+            </span>
+            <span class="clearfix">
+            </span>
+            <span class="form-radio-item" style="clear:left;">
+              <input type="radio" class="form-radio validate[required]" id="topLang" name="topLang" value="Get top languages tweets written in." />
+            <button for="input_9_3" class="myButton" onClick="dataToColums('languages')"> Get top languages tweets written in. </button>
+            </span>
+            <span class="clearfix">
+            </span>
+            <span class="form-radio-item" style="clear:left;">
+              <input type="radio" class="form-radio validate[required]" id="topTime" name="topTime" value="Get top tweets by time." />
+              <button for="input_9_4" class="myButton" onClick="dataToColums('times')"> Get top tweets by time. </button>
+            </span>
+            <span class="clearfix">
+            </span>
+          </div>
+        </div>
+      </li>
+    </ul>
+    <p>&nbsp;</p>
+        <p>&nbsp;</p>
+            <p>&nbsp;</p>
+            <p>&nbsp;</p>
+       <div align="left" style="overflow: auto; display:inline" id="tablePlace" ></div>
+       <div align="left" style="overflow: auto; display:inline-table;width:inherit; height:400px;" id="container"></div>
+
+</form>
